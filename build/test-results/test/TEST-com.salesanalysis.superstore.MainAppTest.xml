@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.salesanalysis.superstore.MainAppTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2024-04-08T08:07:45" hostname="MacBook-Pro-Zack.local" time="0.008">
+  <properties/>
+  <testcase name="testMainAppStart()" classname="com.salesanalysis.superstore.MainAppTest" time="0.008"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
