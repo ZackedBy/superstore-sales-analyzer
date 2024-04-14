@@ -34,7 +34,7 @@ set APP_HOME=%DIRNAME%..
 for %%i in ("%APP_HOME%") do set APP_HOME=%%~fi
 
 @rem Add default JVM options here. You can also use JAVA_OPTS and SUPER_STORE_OPTS to pass JVM options to this script.
-set DEFAULT_JVM_OPTS="--module-path" "%APP_HOME%\lib" "--module" "com.salesanalysis.superstore/com.salesanalysis.superstore.HelloApplication"
+set DEFAULT_JVM_OPTS="--module-path" "%APP_HOME%\lib" "--module" "com.salesanalysis.superstore/com.salesanalysis.superstore.MainApp"
 
 @rem Find java.exe
 if defined JAVA_HOME goto findJavaFromJavaHome

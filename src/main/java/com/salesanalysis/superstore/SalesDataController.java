@@ -15,6 +15,13 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 
+/**
+ * Controller class for managing sales data in the SuperStore Sales Analyzer
+ * application.
+ * This class handles loading sales data, searching for customers, calculating
+ * statistics,
+ * and generating reports.
+ */
 public class SalesDataController {
 
     @FXML
@@ -23,6 +30,13 @@ public class SalesDataController {
     @FXML
     TextField customerNameInput;
 
+    /**
+     * Loads sales data from a CSV file and displays it in the TableView.
+     * This method reads data from the SuperStoreOrders.csv file and populates
+     * the TableView with the parsed data.
+     *
+     * @throws IOException if an error occurs while reading the data file.
+     */
     @FXML
     void showData() {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(
@@ -66,7 +80,12 @@ public class SalesDataController {
         }
     }
 
-
+    /**
+     * Toggles the visibility of the customer name input field.
+     * If the input field is currently visible, it hides it; otherwise, it makes it
+     * visible
+     * and sets the input focus to it.
+     */
     @FXML
     private void findCustomer() {
         customerNameInput.setVisible(!customerNameInput.isVisible());
@@ -75,7 +94,15 @@ public class SalesDataController {
         }
     }
 
-
+    /**
+     * Searches for a customer based on the entered name in the customer name input
+     * field.
+     * If a customer name is entered, it filters the sales data to display only the
+     * rows
+     * where the customer name matches (case-insensitive). If no customer name is
+     * entered,
+     * it displays an error message prompting the user to enter a customer name.
+     */
     @FXML
     void searchCustomer() {
         String customerName = customerNameInput.getText().trim().toLowerCase();
@@ -105,12 +132,21 @@ public class SalesDataController {
         }
     }
 
-
+    /**
+     * Adds columns to the TableView for displaying sales data.
+     * This method dynamically creates TableColumn instances for each column in the
+     * sales data,
+     * sets the cell value factory to retrieve the appropriate data from the rows,
+     * and adds
+     * the columns to the TableView.
+     */
     private void addColumns() {
         String[] columns = {
                 "Row ID", "Order ID", "Order Date", "Ship Date", "Ship Mode",
-                "Customer ID", "Customer Name", "Segment", "Country", "City", "State", "Postal Code", "Region",
-                "Product ID", "Category", "Sub-Category", "Product Name", "Sales", "Quantity", "Discount",
+                "Customer ID", "Customer Name", "Segment", "Country", "City",
+                "State", "Postal Code", "Region",
+                "Product ID", "Category", "Sub-Category", "Product Name",
+                "Sales", "Quantity", "Discount",
                 "Profit"
         };
 
@@ -125,6 +161,14 @@ public class SalesDataController {
         }
     }
 
+    /**
+     * Calculates and displays statistics related to sales data.
+     * This method computes the average sales amount per order by iterating over the
+     * sales data,
+     * parsing the sales amount, and then calculating the average. It displays the
+     * result in
+     * an information dialog box.
+     */
     @FXML
     void showStatistics() {
         ObservableList<String[]> data = dataTable.getItems();
@@ -148,15 +192,33 @@ public class SalesDataController {
 
         double averageSales = totalSales / orderCount;
 
-        showWindow("Average Sales Amount", "The average sales amount of the orders is: $" + String.format("%.2f", averageSales));
+        showWindow("Average Sales Amount",
+                "The average sales amount of the orders is: $" + String.format("%.2f", averageSales));
     }
 
+    /**
+     * Parses the sales amount from a string and converts it to a double.
+     * This method takes a string representation of the sales amount, which may
+     * contain
+     * commas as decimal separators, and parses it into a double value. It replaces
+     * any
+     * commas with dots to ensure proper parsing.
+     *
+     * @param salesString the string representation of the sales amount
+     * @return the parsed sales amount as a double
+     * @throws NumberFormatException if the string cannot be parsed as a double
+     */
     private double parseSalesAmount(String salesString) {
         return Double.parseDouble(salesString.replace(",", "."));
     }
 
-
-
+    /**
+     * Identifies the customer with the highest total sales.
+     * This method calculates the total sales amount for each customer by summing up
+     * their sales from the sales data. It then determines the customer with the
+     * highest total sales and displays their name and total sales amount in an
+     * information dialog box.
+     */
     @FXML
     void findBestCustomer() {
         ObservableList<String[]> data = dataTable.getItems();
@@ -181,8 +243,17 @@ public class SalesDataController {
         String bestCustomer = Collections.max(customerSalesMap.entrySet(), Map.Entry.comparingByValue()).getKey();
         double highestTotalSales = customerSalesMap.get(bestCustomer);
 
-        showWindow("Best Customer", "The best customer is: " + bestCustomer + " with total sales of $" + String.format("%.2f", highestTotalSales));
+        showWindow("Best Customer", "The best customer is: " + bestCustomer + " with total sales of $"
+                + String.format("%.2f", highestTotalSales));
     }
+
+    /**
+     * Calculates the number of customers per state.
+     * This method iterates over the sales data and counts the number of unique
+     * customers
+     * per state. It then displays the count of customers per state in an
+     * information dialog box.
+     */
     @FXML
     void customersPerState() {
         ObservableList<String[]> data = dataTable.getItems();
@@ -207,6 +278,14 @@ public class SalesDataController {
         showWindow("Customers per State", result.toString());
     }
 
+    /**
+     * Calculates the number of customers per segment.
+     * This method iterates over the sales data and counts the number of unique
+     * customers
+     * per segment. It then displays the count of customers per segment in an
+     * information
+     * dialog box.
+     */
     @FXML
     void customersPerSegment() {
         ObservableList<String[]> data = dataTable.getItems();
@@ -231,7 +310,14 @@ public class SalesDataController {
         showWindow("Customers per Segment", result.toString());
     }
 
-
+    /**
+     * Calculates the total sales amount per year.
+     * This method iterates over the sales data, extracts the year from the order
+     * date,
+     * and accumulates the total sales amount for each year. It then displays the
+     * total
+     * sales amount per year in an information dialog box.
+     */
     @FXML
     void totalSalesPerYear() {
         ObservableList<String[]> data = dataTable.getItems();
@@ -265,11 +351,26 @@ public class SalesDataController {
         showWindow("Total Sales per Year", result.toString());
     }
 
-
+    /**
+     * Extracts the year from a date string.
+     * This method takes a date string in the format "MM.dd.yyyy" and extracts the
+     * year
+     * component from it. It returns the extracted year as a string.
+     *
+     * @param orderDate the date string from which to extract the year
+     * @return the year extracted from the date string
+     */
     private String extractYear(String orderDate) {
         return orderDate.split("\\.")[2];
     }
 
+    /**
+     * Calculates the total sales amount per region.
+     * This method iterates over the sales data, accumulates the total sales amount
+     * for each region,
+     * and then displays the total sales amount per region in an information dialog
+     * box.
+     */
     @FXML
     void totalSalesPerRegion() {
         ObservableList<String[]> data = dataTable.getItems();
@@ -301,7 +402,14 @@ public class SalesDataController {
         showWindow("Total Sales per Region", result.toString());
     }
 
-
+    /**
+     * Displays an alert dialog box with the given title and message.
+     * This method creates an alert dialog box with the specified title and message,
+     * then displays it to the user.
+     *
+     * @param title   the title of the alert dialog
+     * @param message the message to be displayed in the alert dialog
+     */
     private void showAlert(String title, String message) {
         Alert alert = new Alert(AlertType.ERROR);
         alert.setTitle(title);
@@ -309,6 +417,16 @@ public class SalesDataController {
         alert.setContentText(message);
         alert.showAndWait();
     }
+
+    /**
+     * Displays an information dialog box with the given title and message.
+     * This method creates an information dialog box with the specified title and
+     * message,
+     * then displays it to the user.
+     *
+     * @param title   the title of the dialog box
+     * @param message the message to be displayed in the dialog box
+     */
     private void showWindow(String title, String message) {
         Alert alert = new Alert(AlertType.INFORMATION);
         alert.setTitle(title);
@@ -316,16 +434,4 @@ public class SalesDataController {
         alert.setContentText(message);
         alert.showAndWait();
     }
-//
-//    public void setDataTable(TableView<String[]> dataTable) {
-//        this.dataTable = dataTable;
-//    }
-//
-//
-//    public void setCustomerNameInput(String customerName) {
-//        customerNameInput.setText(customerName);
-//    }
-//    public TableView<String[]> getDataTable() {
-//        return dataTable;
-//    }
 }

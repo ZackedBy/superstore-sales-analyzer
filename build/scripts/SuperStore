@@ -203,7 +203,7 @@ fi
 
 
 # Add default JVM options here. You can also use JAVA_OPTS and SUPER_STORE_OPTS to pass JVM options to this script.
-DEFAULT_JVM_OPTS='"--module-path" "$APP_HOME/lib" "--module" "com.salesanalysis.superstore/com.salesanalysis.superstore.HelloApplication"'
+DEFAULT_JVM_OPTS='"--module-path" "$APP_HOME/lib" "--module" "com.salesanalysis.superstore/com.salesanalysis.superstore.MainApp"'
 
 # Collect all arguments for the java command:
 #   * DEFAULT_JVM_OPTS, JAVA_OPTS, JAVA_OPTS, and optsEnvironmentVar are not allowed to contain shell fragments,
@@ -214,7 +214,7 @@ DEFAULT_JVM_OPTS='"--module-path" "$APP_HOME/lib" "--module" "com.salesanalysis.
 set -- \
         -classpath "$CLASSPATH" \
         --module-path "$MODULE_PATH" \
-        --module com.salesanalysis.superstore/com.salesanalysis.superstore.HelloApplication \
+        --module com.salesanalysis.superstore/com.salesanalysis.superstore.MainApp \
         "$@"
 
 # Stop when "xargs" is not available.
