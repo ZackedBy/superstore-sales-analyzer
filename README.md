@@ -3,7 +3,7 @@
 
 
 
-SCREENCAST https://youtu.be/Gb8K7r2unjI
+## SCREENCAST https://youtu.be/Gb8K7r2unjI
 
 # SuperStore Sales Analyzer. 
 This JavaFX application provides a tool for analyzing sales data from the SuperStore. 
@@ -45,6 +45,7 @@ Special thanks to the developers of JavaFX and Gradle for their amazing tools an
 ## Contact
 For questions or support, please contact metelkinzahar@gmail.com
 
+##  Self-evaluation
 Feature                                                          My points        Max
 
 User is able to navigate in the UI. UI is easy to use, 
