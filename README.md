@@ -1,101 +1,64 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-24ddc0f5d75046c5622901739e7c5dd533143b0c8e959d652212380cedb1ea36.svg)](https://classroom.github.com/a/LPqCLRYV)
-# final-exercise
+# SuperStore Sales Analyzer
 
+Desktop tool for the Superstore orders dataset. Load the bundled history, look up a customer, and answer the questions a sales review actually asks: average order value, best customer, customers by state and segment, and sales by year and region.
 
+The project started as a course assignment. Parsing, statistics, and the JavaFX window are now separate, so the business rules run and are tested without opening a UI.
 
-## SCREENCAST https://youtu.be/Gb8K7r2unjI
+## Requirements
 
-# SuperStore Sales Analyzer. 
-This JavaFX application provides a tool for analyzing sales data from the SuperStore. 
+- JDK 21 (Temurin or any other build)
 
-## Introduction 
-The SuperStore Sales Analyzer is designed to help users analyze sales data from the SuperStore. With this application, users can load sales data from a CSV file, search for customers, calculate statistics, and generate reports. Whether you're a business owner, analyst, or researcher, the SuperStore Sales Analyzer offers valuable insights into sales performance and customer behavior. 
+No database and no API keys. The orders file ships in the repository.
 
-## Features 
-- Load sales data from a CSV file 
-- Search for customers by name 
-- Calculate statistics such as average sales amount, best customer, customers per state, and more 
-- Generate reports on total sales per year and per region 
-- User-friendly interface with TableView for easy data visualization 
+## Run
 
-## Installation 
-To run the SuperStore Sales Analyzer on your local machine, follow these steps: 
-Clone the repository
-Navigate to the project directory
-Compile and run the application using Gradle:
-gradle run
+```bash
+./gradlew run
+```
 
+On Windows:
 
-## Usage
-Once the application is running, you can perform the following actions:
-Load Data: Load sales data from a CSV file.
-Find Customer: Search for a customer by name.
-Average Sales: Calculate the average sales amount per order.
-Best Customer: Identify the customer with the highest total sales.
-Customers Per State: Calculate the number of customers per state.
-Customers Per Segment: Calculate the number of customers per segment.
-Total Sales Per Year: Calculate the total sales amount per year.
-Total Sales Per Region: Calculate the total sales amount per region.
+```bat
+gradlew.bat run
+```
+
+The first run downloads the Gradle wrapper distribution and dependencies. Then press **Load Data**.
+
+## Tests and checks
+
+```bash
+./gradlew test
+./gradlew check
+```
+
+`check` runs the unit tests, Checkstyle, and the Spotless format check.
+
+## What the buttons do
+
+- **Load Data** reads `src/main/resources/data/SuperStoreOrders.csv` off the JavaFX thread.
+- **Find** filters the table by customer name. The match is case-insensitive. An empty query shows every loaded line again.
+- **Average sales** averages orders, not lines. Lines that share an order id are summed first.
+- **Best customer** is the customer id with the highest total sales.
+- **Customers per state / segment** counts distinct customer ids, not rows.
+- **Total sales per year / region** sums every line. Statistics always use the full loaded dataset, even when the table is filtered.
+
+## Layout
+
+```text
+src/main/java/com/salesanalysis/superstore
+├── MainApp.java                  window
+├── SalesDataController.java      JavaFX adapter only
+├── model/                        OrderLine, CustomerTotal
+├── csv/OrderCsvParser.java       semicolon CSV, quoted fields, decimal commas
+└── service/SalesAnalytics.java   pure statistics
+```
+
+Dates in the file are day.month.year (`8.11.2016` is 8 November 2016). Product names can contain semicolons and inch marks; they are quoted. A bad row is skipped and reported. It does not fail the whole load.
+
+## Demo
+
+[Screencast of the original UI](https://youtu.be/Gb8K7r2unjI). The buttons are the same; the calculations behind them are the ones described above.
+
 ## License
-This project is licensed under the MIT License.
 
-## Acknowledgments
-Special thanks to the developers of JavaFX and Gradle for their amazing tools and libraries.
-
-## Contact
-For questions or support, please contact metelkinzahar@gmail.com
-
-##  Self-evaluation
-Feature                                                          My points        Max
-
-User is able to navigate in the UI. UI is easy to use, 
-follows common guidelines either 
-in CLI or GUI app                                                20               20
-
-
-App has excellent exception handling                             10               10
-
-User is able search for customers by name                        10               10
-
-User is able to select one of the customers (from search) 
-and view a summary of all the orders made by the customer 
-in a table view (either ascii or gui)                            20               20
-
-User is able show statistics from the dataset                    60               60
-
-What is the average sales amount of the orders? (10p)
-Who is the best customer (highest total sales)? (10p)
-The amount of customers per state? (10p)
-How many Corporate, Consumer and Home Office customers are there? (10p)
-What is the total sales per year? (10p)
-What is the total sales per region, West, East, Central and South. (10p)
-
-Unit Testing for Business Logic                                  00               20
-
-Javadoc comments                                                 20               20
-
-README.md documentation                                          10               10
-
-GUI                                                              50               50
-
-GUI: does not hang/suspend when handling large dataset           20               20
-
-Checkstyle code quality                                          05               10
-
-Screencast                                                       05               10
-
-Git commits                                                      05               10 
-
-Proper releases (implementation for each, 
-clear documentation, working .jar file)                          10               10
-
-Bonus: GUI: User is able to view graphical charts from the data  00               30
-
-SUM                                                              245              290 + 30
-
-
-
-
-
-
-
+[MIT](LICENSE)

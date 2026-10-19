@@ -14,14 +14,19 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '21'
     - name: App test
       id: app-test
       uses: education/autograding-command-grader@v1
       with:
         test-name: App test
         setup-command: ''
-        command: gradle test
-        timeout: 10
+        command: ./gradlew test --no-daemon
+        timeout: 15
     - name: Autograding Reporter
       uses: education/autograding-grading-reporter@v1
       env:

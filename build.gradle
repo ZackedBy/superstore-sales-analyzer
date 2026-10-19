@@ -1,26 +1,26 @@
 plugins {
     id 'java'
     id 'application'
+    id 'checkstyle'
+    id 'com.diffplug.spotless' version '6.25.0'
     id 'org.javamodularity.moduleplugin' version '1.8.12'
     id 'org.openjfx.javafxplugin' version '0.0.13'
     id 'org.beryx.jlink' version '2.25.0'
 }
 
-group 'com.salesanalysis'
-version '1.0-SNAPSHOT'
+group = 'com.salesanalysis'
+version = '1.0-SNAPSHOT'
 
 repositories {
     mavenCentral()
 }
 
-ext {
-    junitVersion = '5.10.0'
+java {
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
-sourceCompatibility = '21'
-targetCompatibility = '21'
-
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
 
@@ -31,39 +31,40 @@ application {
 
 javafx {
     version = '21'
-    modules = ['javafx.controls', 'javafx.fxml', 'javafx.web', 'javafx.swing', 'javafx.media']
+    modules = ['javafx.controls', 'javafx.fxml']
 }
 
 dependencies {
-    implementation('org.controlsfx:controlsfx:11.1.2')
-    implementation('com.dlsc.formsfx:formsfx-core:11.6.0') {
-        exclude(group: 'org.openjfx')
-    }
-    implementation('net.synedra:validatorfx:0.4.0') {
-        exclude(group: 'org.openjfx')
-    }
-    implementation('org.kordamp.ikonli:ikonli-javafx:12.3.1')
-    implementation('org.kordamp.bootstrapfx:bootstrapfx-core:0.4.0')
-    implementation('eu.hansolo:tilesfx:11.48') {
-        exclude(group: 'org.openjfx')
-    }
-    implementation('com.github.almasb:fxgl:17.3') {
-        exclude(group: 'org.openjfx')
-        exclude(group: 'org.jetbrains.kotlin')
-    }
-    implementation('org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.23')
+    implementation 'org.apache.commons:commons-csv:1.11.0'
 
-
-
-
-    testImplementation("org.junit.jupiter:junit-jupiter-api:${junitVersion}")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:${junitVersion}")
-    testImplementation ("org.mockito:mockito-core:3.12.4")
-
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 test {
     useJUnitPlatform()
+}
+
+checkstyle {
+    toolVersion = '10.20.2'
+    configFile = file('config/checkstyle/checkstyle.xml')
+}
+
+tasks.withType(Checkstyle).configureEach {
+    // Checkstyle's Java parser aborts on module-info.java ("no viable alternative at input 'module'").
+    exclude '**/module-info.java'
+}
+
+spotless {
+    java {
+        target 'src/*/java/**/*.java'
+        googleJavaFormat('1.22.0')
+        removeUnusedImports()
+    }
+}
+
+tasks.named('check') {
+    dependsOn 'spotlessCheck'
 }
 
 jlink {
@@ -77,6 +78,7 @@ jlink {
 jlinkZip {
     group = 'distribution'
 }
+
 tasks.jar {
     manifest {
         attributes('Main-Class': 'com.salesanalysis.superstore.MainApp')

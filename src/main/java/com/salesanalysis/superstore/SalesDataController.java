@@ -1,437 +1,287 @@
 package com.salesanalysis.superstore;
 
+import com.salesanalysis.superstore.csv.LoadResult;
+import com.salesanalysis.superstore.csv.OrderCsvParser;
+import com.salesanalysis.superstore.model.CustomerTotal;
+import com.salesanalysis.superstore.model.OrderLine;
+import com.salesanalysis.superstore.service.SalesAnalytics;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
+import java.time.format.DateTimeFormatter;
+import java.util.List;
+import java.util.Map;
+import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.fxml.FXML;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.Label;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.*;
-
 /**
- * Controller class for managing sales data in the SuperStore Sales Analyzer
- * application.
- * This class handles loading sales data, searching for customers, calculating
- * statistics,
- * and generating reports.
+ * JavaFX adapter. Loading and statistics live in {@link OrderCsvParser} and {@link SalesAnalytics};
+ * this class only moves results onto the table and into dialogs.
  */
 public class SalesDataController {
 
-    @FXML
-    TableView<String[]> dataTable;
+  static final String ORDERS_RESOURCE = "/data/SuperStoreOrders.csv";
 
-    @FXML
-    TextField customerNameInput;
+  private static final Logger LOG = Logger.getLogger(SalesDataController.class.getName());
+  private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d.M.uuuu");
 
-    /**
-     * Loads sales data from a CSV file and displays it in the TableView.
-     * This method reads data from the SuperStoreOrders.csv file and populates
-     * the TableView with the parsed data.
-     *
-     * @throws IOException if an error occurs while reading the data file.
-     */
-    @FXML
-    void showData() {
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(
-                Objects.requireNonNull(getClass().getResourceAsStream("/data/SuperStoreOrders.csv"))))) {
+  @FXML private TableView<OrderLine> dataTable;
+  @FXML private TextField customerNameInput;
 
-            String[] columns = {
-                    "Row ID", "Order ID", "Order Date", "Ship Date", "Ship Mode",
-                    "Customer ID", "Customer Name", "Segment", "Country", "City", "State", "Postal Code", "Region",
-                    "Product ID", "Category", "Sub-Category", "Product Name", "Sales", "Quantity", "Discount",
-                    "Profit"
-            };
+  private final OrderCsvParser parser = new OrderCsvParser();
+  private List<OrderLine> orders = List.of();
+  private boolean loading;
 
-            ObservableList<String[]> data = FXCollections.observableArrayList();
+  @FXML
+  private void initialize() {
+    dataTable.setPlaceholder(
+        new Label("Press \"Load Data\" to read the bundled Superstore orders."));
+    dataTable.setColumnResizePolicy(TableView.UNCONSTRAINED_RESIZE_POLICY);
+    dataTable.setTableMenuButtonVisible(true);
+    addColumn("Row ID", 70, order -> Integer.toString(order.rowId()));
+    addColumn("Order ID", 130, OrderLine::orderId);
+    addColumn("Order Date", 100, order -> order.orderDate().format(DATE));
+    addColumn("Ship Date", 100, order -> order.shipDate().format(DATE));
+    addColumn("Ship Mode", 120, OrderLine::shipMode);
+    addColumn("Customer ID", 110, OrderLine::customerId);
+    addColumn("Customer Name", 160, OrderLine::customerName);
+    addColumn("Segment", 110, OrderLine::segment);
+    addColumn("Country", 120, OrderLine::country);
+    addColumn("City", 140, OrderLine::city);
+    addColumn("State", 140, OrderLine::state);
+    addColumn("Postal Code", 100, OrderLine::postalCode);
+    addColumn("Region", 90, OrderLine::region);
+    addColumn("Product ID", 140, OrderLine::productId);
+    addColumn("Category", 130, OrderLine::category);
+    addColumn("Sub-Category", 130, OrderLine::subCategory);
+    addColumn("Product Name", 280, OrderLine::productName);
+    addColumn("Sales", 90, order -> order.sales().toPlainString());
+    addColumn("Quantity", 80, order -> Integer.toString(order.quantity()));
+    addColumn("Discount", 80, order -> order.discount().toPlainString());
+    addColumn("Profit", 90, order -> order.profit().toPlainString());
+  }
 
-            String line;
-            boolean firstLine = true;
-            while ((line = reader.readLine()) != null) {
-                if (firstLine) {
-                    firstLine = false;
-                    continue;
-                }
-                line = line.replace("Drive;", "Drive,");
-                String[] row = line.split(";");
-                data.add(row);
-            }
-
-            dataTable.getColumns().clear();
-            for (int i = 0; i < columns.length; i++) {
-                final int columnIndex = i;
-                TableColumn<String[], String> column = new TableColumn<>(columns[i]);
-                column.setCellValueFactory(cellData -> {
-                    String[] row = cellData.getValue();
-                    return new SimpleStringProperty(row.length > columnIndex ? row[columnIndex] : "");
-                });
-                dataTable.getColumns().add(column);
-            }
-
-            dataTable.setItems(data);
-        } catch (IOException e) {
-            showAlert("Error reading data from file.", e.getMessage());
-        }
+  @FXML
+  private void showData() {
+    if (loading) {
+      return;
     }
-
-    /**
-     * Toggles the visibility of the customer name input field.
-     * If the input field is currently visible, it hides it; otherwise, it makes it
-     * visible
-     * and sets the input focus to it.
-     */
-    @FXML
-    private void findCustomer() {
-        customerNameInput.setVisible(!customerNameInput.isVisible());
-        if (customerNameInput.isVisible()) {
-            customerNameInput.requestFocus();
-        }
-    }
-
-    /**
-     * Searches for a customer based on the entered name in the customer name input
-     * field.
-     * If a customer name is entered, it filters the sales data to display only the
-     * rows
-     * where the customer name matches (case-insensitive). If no customer name is
-     * entered,
-     * it displays an error message prompting the user to enter a customer name.
-     */
-    @FXML
-    void searchCustomer() {
-        String customerName = customerNameInput.getText().trim().toLowerCase();
-        System.out.println("Searching for customer: " + customerName);
-
-        if (customerName.isEmpty()) {
-            showAlert("Error", "Please enter a customer name.");
-            return;
-        }
-
-        ObservableList<String[]> data = dataTable.getItems();
-        ObservableList<String[]> filteredData = FXCollections.observableArrayList();
-
-        for (String[] row : data) {
-            String fullName = row[6].toLowerCase();
-            if (fullName.contains(customerName)) {
-                filteredData.add(row);
+    loading = true;
+    Task<LoadResult> task =
+        new Task<>() {
+          @Override
+          protected LoadResult call() throws IOException {
+            InputStream input = SalesDataController.class.getResourceAsStream(ORDERS_RESOURCE);
+            if (input == null) {
+              throw new IOException("Sales file was not found: " + ORDERS_RESOURCE);
             }
-        }
-
-        if (filteredData.isEmpty()) {
-            showAlert("Not Found", "Customer not found.");
-        } else {
-            dataTable.getColumns().clear();
-            addColumns();
-            dataTable.setItems(filteredData);
-        }
-    }
-
-    /**
-     * Adds columns to the TableView for displaying sales data.
-     * This method dynamically creates TableColumn instances for each column in the
-     * sales data,
-     * sets the cell value factory to retrieve the appropriate data from the rows,
-     * and adds
-     * the columns to the TableView.
-     */
-    private void addColumns() {
-        String[] columns = {
-                "Row ID", "Order ID", "Order Date", "Ship Date", "Ship Mode",
-                "Customer ID", "Customer Name", "Segment", "Country", "City",
-                "State", "Postal Code", "Region",
-                "Product ID", "Category", "Sub-Category", "Product Name",
-                "Sales", "Quantity", "Discount",
-                "Profit"
+            try (InputStream stream = input;
+                Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+              return parser.parse(reader);
+            }
+          }
         };
+    task.setOnSucceeded(
+        event -> {
+          loading = false;
+          applyLoaded(task.getValue());
+        });
+    task.setOnFailed(
+        event -> {
+          loading = false;
+          Throwable error = task.getException();
+          LOG.log(Level.SEVERE, "Failed to load sales data", error);
+          showAlert("Could not load sales data", errorMessage(error));
+        });
+    Thread thread = new Thread(task, "sales-csv-loader");
+    thread.setDaemon(true);
+    thread.start();
+  }
 
-        for (int i = 0; i < columns.length; i++) {
-            final int columnIndex = i;
-            TableColumn<String[], String> column = new TableColumn<>(columns[i]);
-            column.setCellValueFactory(cellData -> {
-                String[] row = cellData.getValue();
-                return row.length > columnIndex ? new SimpleStringProperty(row[columnIndex]) : null;
-            });
-            dataTable.getColumns().add(column);
-        }
+  @FXML
+  private void findCustomer() {
+    boolean show = !customerNameInput.isVisible();
+    customerNameInput.setVisible(show);
+    customerNameInput.setManaged(show);
+    if (show) {
+      customerNameInput.requestFocus();
     }
+  }
 
-    /**
-     * Calculates and displays statistics related to sales data.
-     * This method computes the average sales amount per order by iterating over the
-     * sales data,
-     * parsing the sales amount, and then calculating the average. It displays the
-     * result in
-     * an information dialog box.
-     */
-    @FXML
-    void showStatistics() {
-        ObservableList<String[]> data = dataTable.getItems();
-        if (data.isEmpty()) {
-            showAlert("Error", "No data available to calculate statistics.");
-            return;
-        }
-
-        double totalSales = 0;
-        int orderCount = 0;
-
-        for (String[] row : data) {
-            try {
-                double salesAmount = parseSalesAmount(row[17]);
-                totalSales += salesAmount;
-                orderCount++;
-            } catch (NumberFormatException e) {
-                System.err.println("Error parsing sales amount: " + e.getMessage());
-            }
-        }
-
-        double averageSales = totalSales / orderCount;
-
-        showWindow("Average Sales Amount",
-                "The average sales amount of the orders is: $" + String.format("%.2f", averageSales));
+  @FXML
+  private void searchCustomer() {
+    if (!requireOrders()) {
+      return;
     }
-
-    /**
-     * Parses the sales amount from a string and converts it to a double.
-     * This method takes a string representation of the sales amount, which may
-     * contain
-     * commas as decimal separators, and parses it into a double value. It replaces
-     * any
-     * commas with dots to ensure proper parsing.
-     *
-     * @param salesString the string representation of the sales amount
-     * @return the parsed sales amount as a double
-     * @throws NumberFormatException if the string cannot be parsed as a double
-     */
-    private double parseSalesAmount(String salesString) {
-        return Double.parseDouble(salesString.replace(",", "."));
+    String query = customerNameInput.getText() == null ? "" : customerNameInput.getText();
+    List<OrderLine> matches = SalesAnalytics.findByCustomerName(orders, query);
+    if (!query.isBlank() && matches.isEmpty()) {
+      showAlert("Not found", "No customer matches \"" + query.trim() + "\".");
+      return;
     }
+    dataTable.setItems(FXCollections.observableArrayList(matches));
+  }
 
-    /**
-     * Identifies the customer with the highest total sales.
-     * This method calculates the total sales amount for each customer by summing up
-     * their sales from the sales data. It then determines the customer with the
-     * highest total sales and displays their name and total sales amount in an
-     * information dialog box.
-     */
-    @FXML
-    void findBestCustomer() {
-        ObservableList<String[]> data = dataTable.getItems();
-        if (data.isEmpty()) {
-            showAlert("Error", "No data available to calculate best customer.");
-            return;
-        }
-
-        Map<String, Double> customerSalesMap = new HashMap<>();
-
-        for (int i = 1; i < data.size(); i++) {
-            String[] row = data.get(i);
-            String customerName = row[6];
-            try {
-                double salesAmount = parseSalesAmount(row[17]);
-                customerSalesMap.merge(customerName, salesAmount, Double::sum);
-            } catch (NumberFormatException e) {
-                System.err.println("Invalid sales amount in row " + (i + 1) + ": " + e.getMessage());
-            }
-        }
-
-        String bestCustomer = Collections.max(customerSalesMap.entrySet(), Map.Entry.comparingByValue()).getKey();
-        double highestTotalSales = customerSalesMap.get(bestCustomer);
-
-        showWindow("Best Customer", "The best customer is: " + bestCustomer + " with total sales of $"
-                + String.format("%.2f", highestTotalSales));
+  @FXML
+  private void showStatistics() {
+    if (!requireOrders()) {
+      return;
     }
+    BigDecimal average = SalesAnalytics.averageOrderSales(orders).orElseThrow();
+    long orderCount = orders.stream().map(OrderLine::orderId).distinct().count();
+    showInfo(
+        "Average sales",
+        "Average sales per order: "
+            + money(average)
+            + " ("
+            + orderCount
+            + " orders, lines with the same order id summed first).");
+  }
 
-    /**
-     * Calculates the number of customers per state.
-     * This method iterates over the sales data and counts the number of unique
-     * customers
-     * per state. It then displays the count of customers per state in an
-     * information dialog box.
-     */
-    @FXML
-    void customersPerState() {
-        ObservableList<String[]> data = dataTable.getItems();
-        if (data.isEmpty()) {
-            showAlert("Error", "No data available to calculate customers per state.");
-            return;
-        }
-
-        Map<String, Integer> customersPerStateMap = new HashMap<>();
-
-        for (String[] row : data) {
-            String state = row[10];
-            customersPerStateMap.merge(state, 1, Integer::sum);
-        }
-
-        StringBuilder result = new StringBuilder();
-        result.append("Customers per State:\n");
-        for (Map.Entry<String, Integer> entry : customersPerStateMap.entrySet()) {
-            result.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
-        }
-
-        showWindow("Customers per State", result.toString());
+  @FXML
+  private void findBestCustomer() {
+    if (!requireOrders()) {
+      return;
     }
+    CustomerTotal best = SalesAnalytics.bestCustomer(orders).orElseThrow();
+    showInfo(
+        "Best customer",
+        best.customerName()
+            + " ("
+            + best.customerId()
+            + ") with total sales "
+            + money(best.totalSales())
+            + ".");
+  }
 
-    /**
-     * Calculates the number of customers per segment.
-     * This method iterates over the sales data and counts the number of unique
-     * customers
-     * per segment. It then displays the count of customers per segment in an
-     * information
-     * dialog box.
-     */
-    @FXML
-    void customersPerSegment() {
-        ObservableList<String[]> data = dataTable.getItems();
-        if (data.isEmpty()) {
-            showAlert("Error", "No data available to calculate customers per segment.");
-            return;
-        }
-
-        Map<String, Integer> customersPerSegmentMap = new HashMap<>();
-
-        for (String[] row : data) {
-            String segment = row[7];
-            customersPerSegmentMap.merge(segment, 1, Integer::sum);
-        }
-
-        StringBuilder result = new StringBuilder();
-        result.append("Customers per Segment:\n");
-        for (Map.Entry<String, Integer> entry : customersPerSegmentMap.entrySet()) {
-            result.append(entry.getKey()).append(": ").append(entry.getValue()).append("\n");
-        }
-
-        showWindow("Customers per Segment", result.toString());
+  @FXML
+  private void customersPerState() {
+    if (!requireOrders()) {
+      return;
     }
+    showCounts("Customers per state", SalesAnalytics.customersPerState(orders));
+  }
 
-    /**
-     * Calculates the total sales amount per year.
-     * This method iterates over the sales data, extracts the year from the order
-     * date,
-     * and accumulates the total sales amount for each year. It then displays the
-     * total
-     * sales amount per year in an information dialog box.
-     */
-    @FXML
-    void totalSalesPerYear() {
-        ObservableList<String[]> data = dataTable.getItems();
-        if (data.isEmpty()) {
-            showAlert("Error", "No data available to calculate total sales per year.");
-            return;
-        }
-
-        Map<String, Double> totalSalesPerYearMap = new HashMap<>();
-
-        for (String[] row : data) {
-            String orderDate = row[2];
-            String salesAmountString = row[17];
-
-            try {
-                double salesAmount = parseSalesAmount(salesAmountString);
-                String year = extractYear(orderDate);
-
-                totalSalesPerYearMap.merge(year, salesAmount, Double::sum);
-            } catch (NumberFormatException e) {
-                System.err.println("Error parsing sales amount for row: " + Arrays.toString(row));
-            }
-        }
-
-        StringBuilder result = new StringBuilder();
-        result.append("Total Sales per Year:\n");
-        for (Map.Entry<String, Double> entry : totalSalesPerYearMap.entrySet()) {
-            result.append(entry.getKey()).append(": $").append(String.format("%.2f", entry.getValue())).append("\n");
-        }
-
-        showWindow("Total Sales per Year", result.toString());
+  @FXML
+  private void customersPerSegment() {
+    if (!requireOrders()) {
+      return;
     }
+    showCounts("Customers per segment", SalesAnalytics.customersPerSegment(orders));
+  }
 
-    /**
-     * Extracts the year from a date string.
-     * This method takes a date string in the format "MM.dd.yyyy" and extracts the
-     * year
-     * component from it. It returns the extracted year as a string.
-     *
-     * @param orderDate the date string from which to extract the year
-     * @return the year extracted from the date string
-     */
-    private String extractYear(String orderDate) {
-        return orderDate.split("\\.")[2];
+  @FXML
+  private void totalSalesPerYear() {
+    if (!requireOrders()) {
+      return;
     }
+    showMoney("Total sales per year", SalesAnalytics.totalSalesPerYear(orders));
+  }
 
-    /**
-     * Calculates the total sales amount per region.
-     * This method iterates over the sales data, accumulates the total sales amount
-     * for each region,
-     * and then displays the total sales amount per region in an information dialog
-     * box.
-     */
-    @FXML
-    void totalSalesPerRegion() {
-        ObservableList<String[]> data = dataTable.getItems();
-        if (data.isEmpty()) {
-            showAlert("Error", "No data available to calculate total sales per region.");
-            return;
-        }
-
-        Map<String, Double> totalSalesPerRegionMap = new HashMap<>();
-
-        for (String[] row : data) {
-            String region = row[12];
-            String salesAmountString = row[17];
-
-            try {
-                double salesAmount = parseSalesAmount(salesAmountString);
-                totalSalesPerRegionMap.merge(region, salesAmount, Double::sum);
-            } catch (NumberFormatException e) {
-                System.err.println("Error parsing sales amount for row: " + Arrays.toString(row));
-            }
-        }
-
-        StringBuilder result = new StringBuilder();
-        result.append("Total Sales per Region:\n");
-        for (Map.Entry<String, Double> entry : totalSalesPerRegionMap.entrySet()) {
-            result.append(entry.getKey()).append(": $").append(String.format("%.2f", entry.getValue())).append("\n");
-        }
-
-        showWindow("Total Sales per Region", result.toString());
+  @FXML
+  private void totalSalesPerRegion() {
+    if (!requireOrders()) {
+      return;
     }
+    showMoney("Total sales per region", SalesAnalytics.totalSalesPerRegion(orders));
+  }
 
-    /**
-     * Displays an alert dialog box with the given title and message.
-     * This method creates an alert dialog box with the specified title and message,
-     * then displays it to the user.
-     *
-     * @param title   the title of the alert dialog
-     * @param message the message to be displayed in the alert dialog
-     */
-    private void showAlert(String title, String message) {
-        Alert alert = new Alert(AlertType.ERROR);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+  private void applyLoaded(LoadResult result) {
+    orders = result.orders();
+    dataTable.setItems(FXCollections.observableArrayList(orders));
+    for (String warning : result.warnings()) {
+      LOG.warning(warning);
     }
+    if (orders.isEmpty()) {
+      showAlert("No data", "The sales file did not contain any orders.");
+      return;
+    }
+    if (!result.warnings().isEmpty()) {
+      showInfo(
+          "Data loaded with skips",
+          "Loaded "
+              + orders.size()
+              + " orders. Skipped "
+              + result.warnings().size()
+              + " invalid rows.");
+    }
+  }
 
-    /**
-     * Displays an information dialog box with the given title and message.
-     * This method creates an information dialog box with the specified title and
-     * message,
-     * then displays it to the user.
-     *
-     * @param title   the title of the dialog box
-     * @param message the message to be displayed in the dialog box
-     */
-    private void showWindow(String title, String message) {
-        Alert alert = new Alert(AlertType.INFORMATION);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
+  private boolean requireOrders() {
+    if (orders.isEmpty()) {
+      showAlert("No data", "Load sales data first.");
+      return false;
     }
+    return true;
+  }
+
+  private void addColumn(String title, double width, Function<OrderLine, String> value) {
+    TableColumn<OrderLine, String> column = new TableColumn<>(title);
+    column.setPrefWidth(width);
+    column.setCellValueFactory(cell -> new SimpleStringProperty(value.apply(cell.getValue())));
+    dataTable.getColumns().add(column);
+  }
+
+  private void showCounts(String title, Map<String, Integer> counts) {
+    StringBuilder body = new StringBuilder();
+    counts.forEach((key, value) -> body.append(key).append(": ").append(value).append('\n'));
+    showInfo(title, body.toString());
+  }
+
+  private void showMoney(String title, Map<?, BigDecimal> totals) {
+    StringBuilder body = new StringBuilder();
+    totals.forEach((key, value) -> body.append(key).append(": ").append(money(value)).append('\n'));
+    showInfo(title, body.toString());
+  }
+
+  private static String money(BigDecimal amount) {
+    return amount.setScale(2, RoundingMode.HALF_UP).toPlainString();
+  }
+
+  private void showAlert(String title, String message) {
+    showDialog(AlertType.ERROR, title, message);
+  }
+
+  private void showInfo(String title, String message) {
+    showDialog(AlertType.INFORMATION, title, message);
+  }
+
+  private void showDialog(AlertType type, String title, String message) {
+    Alert alert = new Alert(type);
+    alert.setTitle(title);
+    alert.setHeaderText(null);
+    alert.setContentText(message);
+    alert.setResizable(true);
+    alert.getDialogPane().setPrefWidth(480);
+    if (dataTable.getScene() != null) {
+      alert.initOwner(dataTable.getScene().getWindow());
+    }
+    alert.showAndWait();
+  }
+
+  private static String errorMessage(Throwable error) {
+    Throwable current = error;
+    while (current != null) {
+      if (current.getMessage() != null && !current.getMessage().isBlank()) {
+        return current.getMessage();
+      }
+      current = current.getCause();
+    }
+    return "Unexpected error while reading the sales file.";
+  }
 }
